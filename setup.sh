@@ -55,20 +55,20 @@ open -g -a Docker
 
 echo "${cyan}Docker${blue} is now starting!${reset}"
 
-while (! docker stats --no-stream ); do
+while (! docker stats --no-stream &> /dev/null ); do
   # Docker takes a few seconds to initialize
   echo "${blue}Waiting for ${cyan}Docker${blue} to launch...${reset}"
   sleep 5
 done
 
 #build image
-docker build -t debian_img .
+docker build -t alpine_img .
 
 #create shared folder
-mkdir -p debian_env
+mkdir -p alpine_env
 
 #run container
-docker run -it --name debian -v "$(pwd)"/debian_env:/debian_env debian_img
+docker run -it --name alpine -v "$(pwd)"/alpine_env:/alpine_env alpine_img
 
 #rm container
-docker rm debian
+docker rm alpine
