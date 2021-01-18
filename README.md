@@ -1,2 +1,2 @@
-# 42debian_docker
-debian container setup for 42 school macs
+# 42alpine_docker
+alpine docker container setup for 42 school macs
