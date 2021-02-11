@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Ensure USER variabe is set
 [ -z "${USER}" ] && export USER=$(whoami)
@@ -11,6 +11,47 @@ blue=$'\033[0;34m'
 cyan=$'\033[1;96m'
 reset=$'\033[0;39m'
 
+setup_docker()
+{
+	pkill Docker
+
+	# Ask to reset destination if it already exists
+	if [ -d "$docker_destination" ]; then
+		read -p "${blue}Folder ${cyan}$docker_destination${blue} already exists, do you want to reset it? [y/${cyan}N${blue}]${reset} " input
+		echo ""
+		if [ -n "$input" ] && [ "$input" = "y" ]; then
+			rm -rf "$docker_destination"/{com.docker.{docker,helper},.docker} &>/dev/null ;:
+		fi
+	fi
+
+	# Unlinks all symlinks, if they are
+	unlink ~/Library/Containers/com.docker.docker &>/dev/null ;:
+	unlink ~/Library/Containers/com.docker.helper &>/dev/null ;:
+	unlink ~/.docker &>/dev/null ;:
+
+	# Delete directories if they were not symlinks
+	rm -rf ~/Library/Containers/com.docker.{docker,helper} ~/.docker &>/dev/null ;:
+
+	# Create destination directories in case they don't already exist
+	mkdir -p "$docker_destination"/{com.docker.{docker,helper},.docker}
+
+	# Make symlinks
+	ln -sf "$docker_destination"/com.docker.docker ~/Library/Containers/com.docker.docker
+	ln -sf "$docker_destination"/com.docker.helper ~/Library/Containers/com.docker.helper
+	ln -sf "$docker_destination"/.docker ~/.docker
+
+	# Start Docker for Mac
+	open -g -a Docker
+
+	# Docker takes a few seconds to be running
+	echo -n "${blue}Waiting for ${cyan}Docker${blue} to be running."
+	while (! docker stats --no-stream &> /dev/null ); do
+	sleep 1
+	echo -n "."
+	done
+	echo "${reset}"
+}
+
 # Uninstall docker, docker-compose and docker-machine if they are installed with brew
 brew uninstall -f docker docker-compose docker-machine &>/dev/null ;:
 
@@ -22,44 +63,16 @@ if [ ! -d "/Applications/Docker.app" ] && [ ! -d "~/Applications/Docker.app" ]; 
 	echo ""
 fi
 
-# Kill Docker if started, so it doesn't create files during the process
-pkill Docker
-
-# Ask to reset destination if it already exists
-if [ -d "$docker_destination" ]; then
-	read -n1 -p "${blue}Folder ${cyan}$docker_destination${blue} already exists, do you want to reset it? [y/${cyan}N${blue}]${reset} " input
+# Ask to or not to set docker up
+if ( pgrep -f Docker > /dev/null &> /dev/null); then
+	read -n1 -p "${cyan}Docker${blue} is already started, do you want to restart it ? [y/${cyan}N${blue}]${reset}" input
 	echo ""
 	if [ -n "$input" ] && [ "$input" = "y" ]; then
-		rm -rf "$docker_destination"/{com.docker.{docker,helper},.docker} &>/dev/null ;:
+		setup_docker
 	fi
+else
+	setup_docker
 fi
-
-# Unlinks all symlinks, if they are
-unlink ~/Library/Containers/com.docker.docker &>/dev/null ;:
-unlink ~/Library/Containers/com.docker.helper &>/dev/null ;:
-unlink ~/.docker &>/dev/null ;:
-
-# Delete directories if they were not symlinks
-rm -rf ~/Library/Containers/com.docker.{docker,helper} ~/.docker &>/dev/null ;:
-
-# Create destination directories in case they don't already exist
-mkdir -p "$docker_destination"/{com.docker.{docker,helper},.docker}
-
-# Make symlinks
-ln -sf "$docker_destination"/com.docker.docker ~/Library/Containers/com.docker.docker
-ln -sf "$docker_destination"/com.docker.helper ~/Library/Containers/com.docker.helper
-ln -sf "$docker_destination"/.docker ~/.docker
-
-# Start Docker for Mac
-open -g -a Docker
-
-echo "${cyan}Docker${blue} is now starting!${reset}"
-
-while (! docker stats --no-stream &> /dev/null ); do
-  # Docker takes a few seconds to initialize
-  echo "${blue}Waiting for ${cyan}Docker${blue} to launch...${reset}"
-  sleep 5
-done
 
 #build image
 docker build -t alpine_img .
@@ -67,8 +80,8 @@ docker build -t alpine_img .
 #create shared folder
 mkdir -p alpine_env
 
-#run container
-docker run -it --name alpine -v "$(pwd)"/alpine_env:/alpine_env alpine_img
+#rm docker name
+docker rm alpine 2> /dev/null
 
-#rm container
-docker rm alpine
+#run container
+docker run -it --name alpine -v "$(pwd)"/alpine_env:/root/alpine_env alpine_img
