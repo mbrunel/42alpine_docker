@@ -74,14 +74,17 @@ else
 	setup_docker
 fi
 
+#cd to working directory
+cd "$(dirname "$0")"
+
 #build image
-docker build -t alpine_img .
+docker build -t debian_img .
 
 #create shared folder
-mkdir -p alpine_env
+mkdir -p debian_env
 
 #rm docker name
-docker rm alpine 2> /dev/null
+docker rm debian 2> /dev/null
 
 #run container
-docker run -it --name alpine -v "$(pwd)"/alpine_env:/root/alpine_env alpine_img
+docker run -it --name debian -v "$(pwd)"/debian_env:/root/debian_env debian_img
